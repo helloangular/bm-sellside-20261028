@@ -1,0 +1,215 @@
+name: 'GoCD template: DockerAppBuildWithQualityChecksTemplate'
+'on':
+  workflow_call:
+    inputs:
+      dagly-instance:
+        description: Compiled GoCD pipeline parameters and instance settings (not secrets)
+        type: string
+        required: true
+concurrency:
+  group: ${{ fromJSON(inputs['dagly-instance'])['concurrency-group-b40a989131b61b26'] }}
+  cancel-in-progress: ${{ fromJSON(inputs['dagly-instance'])['concurrency-cancel-in-progress-c97efb936cd18a88'] }}
+jobs:
+  gocd_materials:
+    name: ${{ fromJSON(inputs['dagly-instance'])['jobs-0-name-64d50cf9adfd5270'] }}
+    runs-on: ${{ fromJSON(inputs['dagly-instance'])['jobs-0-runs-on-0f61043d52d7efc9'] }}
+    outputs:
+      quality: ${{ steps.resolve_quality.outputs.revision }}
+    steps:
+    - name: ${{ fromJSON(inputs['dagly-instance'])['jobs-0-steps-0-name-df93400166f7f4c1'] }}
+      id: resolve_quality
+      uses: actions/github-script@v8
+      with:
+        result-encoding: ${{ fromJSON(inputs['dagly-instance'])['jobs-0-steps-0-with-result-encoding-05bb6d1cb5b90f82'] }}
+        script: |-
+          const [owner, repo] = process.env.DAGLY_MATERIAL_REPOSITORY.split('/');
+          const r = await github.rest.repos.getBranch({ owner, repo, branch: process.env.DAGLY_MATERIAL_BRANCH });
+          core.setOutput('revision', r.data.commit.sha);
+          return r.data.commit.sha;
+      env:
+        DAGLY_MATERIAL_BRANCH: ${{ fromJSON(inputs['dagly-instance'])['jobs-0-steps-0-env-dagly_material_branch-eb2c46c4abbb2233'] }}
+        DAGLY_MATERIAL_REPOSITORY: ${{ fromJSON(inputs['dagly-instance'])['jobs-0-steps-0-env-dagly_material_repository-06cca4d4aaf7c992'] }}
+    - name: ${{ fromJSON(inputs['dagly-instance'])['jobs-0-steps-1-name-60b1c1d4a7d7bb2b'] }}
+      run: test -n "$DAGLY_MATERIAL_REVISION" || { echo 'material resolver did not emit revision' >&2; exit 1; }
+      env:
+        DAGLY_MATERIAL_REVISION: ${{ steps.resolve_quality.outputs.revision }}
+  build-build:
+    name: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-name-012c3202efd9f3c0'] }}
+    runs-on:
+    - ${{ fromJSON(inputs['dagly-instance'])['jobs-1-runs-on-0-c406e3d2bd3eb3c5'] }}
+    - ${{ fromJSON(inputs['dagly-instance'])['jobs-1-runs-on-1-a71117d91f1e6ad0'] }}
+    needs:
+    - gocd_materials
+    permissions:
+      contents: write
+    env:
+      AMAZON_ECR_REGISTRY: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-amazon_ecr_registry-fb84a223061d9a8b'] }}
+      CODEARTIFACT_MAVEN_REPOSITORY: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-codeartifact_maven_repository-f8cf8e5c3c0ce9b8'] }}
+      CODECOMMIT_GIT_REPOSITORY: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-codecommit_git_repository-8168fdfccaf5c526'] }}
+      DOCKER_CLOUD_BUILDER_NAME: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-docker_cloud_builder_name-428779b9117c0570'] }}
+      DOCKER_HUB_NAMESPACE: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-docker_hub_namespace-cd4a0d1eeb532182'] }}
+      DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+      DOCKER_NEXUS_NAMESPACE: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-docker_nexus_namespace-84ed4e67ba5ed8d0'] }}
+      ELASTIC_CONTAINER_REGISTRY: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-elastic_container_registry-c9eeb160601c38ab'] }}
+      GITHUB_APP_BUILD_AGENT_CLIENT_ID: ${{ secrets.GH_APP_BUILD_AGENT_CLIENT_ID }}
+      GITHUB_APP_BUILD_AGENT_PRIVATE_KEY: ${{ secrets.GH_APP_BUILD_AGENT_PRIVATE_KEY }}
+      GO_JOB_NAME: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-go_job_name-09ebd3d2b75ba324'] }}
+      GO_MATERIAL_BRANCH_QUALITY: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-go_material_branch_quality-d11a53caa7ba5434'] }}
+      GO_MATERIAL_BRANCH_SOURCE: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-go_material_branch_source-10dfc23447577485'] }}
+      GO_MATERIAL_URL_QUALITY: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-go_material_url_quality-ff676b52a3e00759'] }}
+      GO_MATERIAL_URL_SOURCE: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-go_material_url_source-a3b298c99c307068'] }}
+      GO_PIPELINE_COUNTER: ${{ github.run_number }}
+      GO_PIPELINE_LABEL: 0.3.${{ github.run_number }}
+      GO_PIPELINE_NAME: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-go_pipeline_name-1f82878577e37c3e'] }}
+      GO_REVISION: ${{ github.sha }}
+      GO_REVISION_QUALITY: ${{ needs.gocd_materials.outputs.quality }}
+      GO_REVISION_SOURCE: ${{ github.sha }}
+      GO_SERVER_URL: ${{ github.server_url }}
+      GO_STAGE_COUNTER: ${{ github.run_attempt }}
+      GO_STAGE_NAME: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-go_stage_name-097ef6f3ffd27960'] }}
+      GO_TO_REVISION_QUALITY: ${{ needs.gocd_materials.outputs.quality }}
+      GO_TO_REVISION_SOURCE: ${{ github.sha }}
+      GO_TRIGGER_USER: ${{ github.event_name == 'schedule' && 'timer' || (github.event_name == 'push' || github.event_name == 'workflow_run' || github.event_name == 'repository_dispatch') && 'changes' || github.actor }}
+      NEXUS_DOCKER_GROUP_REGISTRY: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-nexus_docker_group_registry-345e2239364a900e'] }}
+      NEXUS_DOCKER_HOSTED_REGISTRY: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-nexus_docker_hosted_registry-922f774bc12994d1'] }}
+      NEXUS_DOCKER_PASSWORD: ${{ secrets.NEXUS_DOCKER_PASSWORD }}
+      NEXUS_DOCKER_REGISTRY: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-nexus_docker_registry-48b4d06e9896600b'] }}
+      NEXUS_DOCKER_USERNAME: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-nexus_docker_username-0726fbce793203c9'] }}
+      NEXUS_NPM_EMAIL: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-nexus_npm_email-610f4262f1058747'] }}
+      NEXUS_NPM_GROUP_REGISTRY: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-nexus_npm_group_registry-a0c6b1ee3e7976ca'] }}
+      NEXUS_NPM_HOSTED_REGISTRY: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-nexus_npm_hosted_registry-ee4549e7b29e3047'] }}
+      NEXUS_NPM_PASSWORD: ${{ secrets.NEXUS_NPM_PASSWORD }}
+      NEXUS_NPM_USERNAME: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-nexus_npm_username-0df5dc062dde8991'] }}
+      NEXUS_PYPI_GROUP_REGISTRY: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-nexus_pypi_group_registry-c88e289c4f9b3519'] }}
+      NEXUS_PYPI_HOSTED_REGISTRY: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-nexus_pypi_hosted_registry-f64d07a3447d492a'] }}
+      NEXUS_PYPI_PASSWORD: ${{ secrets.NEXUS_PYPI_PASSWORD }}
+      NEXUS_PYPI_REGISTRY: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-nexus_pypi_registry-a23ec9900bda3779'] }}
+      NEXUS_PYPI_USERNAME: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-nexus_pypi_username-d7b67d2c71b756c8'] }}
+      NEXUS_YUM_PASSWORD: ${{ secrets.NEXUS_YUM_PASSWORD }}
+      NEXUS_YUM_USERNAME: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-nexus_yum_username-59f17ca22db411e3'] }}
+      SONAR_HOST_URL: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-env-sonar_host_url-b4a7b07972864ad2'] }}
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+    - name: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-0-name-4285992c6a5ebff5'] }}
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-0-with-fetch-depth-1124434e73fa556c'] }}
+        path: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-0-with-path-ab8e8d4ece0cd82a'] }}
+        ref: ${{ github.sha }}
+        repository: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-0-with-repository-2a7a39c2ecb5756d'] }}
+    - name: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-1-name-fa648aba21a3f251'] }}
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-1-with-fetch-depth-bc949f9d0336c86a'] }}
+        path: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-1-with-path-c1834de0d774f4ab'] }}
+        ref: ${{ needs.gocd_materials.outputs.quality }}
+        repository: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-1-with-repository-ae68a3567f2e170c'] }}
+    - name: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-2-name-7a37febbb40f84e2'] }}
+      run: /bin/bash -c 'mkdir artifacts && echo "BUILD_VERSION=${GO_PIPELINE_LABEL}" >> artifacts/buildVersion.sh && echo "REVISION_SOURCE=${GO_REVISION_SOURCE}" >> artifacts/buildVersion.sh'
+    - name: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-3-name-b32716be0e4ccea5'] }}
+      run: echo 'Environment dump removed by reviewed security mapping'
+    - name: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-4-name-05ffaed430ed15bf'] }}
+      run: /bin/bash -c 'printf '\''%s'\'' "${NEXUS_DOCKER_PASSWORD}" | docker login --username="${NEXUS_DOCKER_USERNAME}" --password-stdin ${NEXUS_DOCKER_HOSTED_REGISTRY}'
+      working-directory: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-4-working-directory-19c12f5540416874'] }}
+    - name: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-5-name-cb2d08d17e996691'] }}
+      run: /bin/bash -c 'printf '\''%s'\'' "${NEXUS_DOCKER_PASSWORD}" | docker login --username="${NEXUS_DOCKER_USERNAME}" --password-stdin ${NEXUS_DOCKER_GROUP_REGISTRY}'
+      working-directory: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-5-working-directory-c4e63169a52cd262'] }}
+    - name: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-6-name-3818efd280730198'] }}
+      run: /bin/bash -c "$DAGLY_TEMPLATE_ARG_2"
+      working-directory: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-6-working-directory-b7f89f9648eb55ae'] }}
+      env:
+        DAGLY_TEMPLATE_ARG_2: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-6-env-dagly_template_arg_2-be558894ade1c46b'] }}
+    - name: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-7-name-76d58889464f11ef'] }}
+      run: /bin/bash -c 'git -c user.name="cicd" -c user.email="cicd@example.test" tag -a "$GO_PIPELINE_LABEL" "$GO_REVISION_SOURCE" -m "Build $GO_PIPELINE_LABEL from GoCD pipeline $GO_PIPELINE_NAME using branch $GO_MATERIAL_BRANCH_SOURCE" && git push origin --tags'
+      working-directory: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-7-working-directory-cf050ada9822b772'] }}
+    - name: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-8-name-f2df6809e791d673'] }}
+      if: ${{ failure() }}
+      run: /bin/bash -c "$DAGLY_TEMPLATE_ARG_2"
+      working-directory: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-8-working-directory-a23b259bd29cb437'] }}
+      env:
+        DAGLY_TEMPLATE_ARG_2: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-8-env-dagly_template_arg_2-302dbd21ea8d6ef5'] }}
+    - name: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-9-name-bd59ffd63109e034'] }}
+      if: ${{ !cancelled() }}
+      run: |-
+        dagly_stage_artifact() {
+          local source="$1" destination="$2"
+          local -a matches
+          if [[ -e "$source" || -L "$source" ]]; then
+            matches=("$source")
+          else
+            local IFS=''
+            shopt -s nullglob
+            # Expand file globs without splitting whitespace or evaluating shell text.
+            # shellcheck disable=SC2206
+            matches=( $source )
+          fi
+          if (( ${#matches[@]} == 0 )); then
+            printf 'Artifact source did not match any files: %s\n' "$source" >&2
+            return 1
+          fi
+          mkdir -p -- "$destination" && cp -R -- "${matches[@]}" "$destination/"
+        }
+        dagly_stage_artifact "$DAGLY_ARTIFACT_SOURCE_0" "$DAGLY_ARTIFACT_DESTINATION_0" || exit 1
+        dagly_stage_artifact "$DAGLY_ARTIFACT_SOURCE_1" "$DAGLY_ARTIFACT_DESTINATION_1" || exit 1
+      shell: bash
+      env:
+        DAGLY_ARTIFACT_DESTINATION_0: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-9-env-dagly_artifact_destination_0-f8911772d9a016d0'] }}
+        DAGLY_ARTIFACT_DESTINATION_1: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-9-env-dagly_artifact_destination_1-d042bc9370a13207'] }}
+        DAGLY_ARTIFACT_SOURCE_0: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-9-env-dagly_artifact_source_0-7194835115666aa3'] }}
+        DAGLY_ARTIFACT_SOURCE_1: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-9-env-dagly_artifact_source_1-a10b2e85cbae267f'] }}
+    - name: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-10-name-93be99aaf4431ddf'] }}
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v7
+      with:
+        if-no-files-found: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-10-with-if-no-files-found-46587a06108be415'] }}
+        include-hidden-files: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-10-with-include-hidden-files-8cdbd579f0adfdc6'] }}
+        name: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-10-with-name-30ec24aed2129b1a'] }}
+        path: ${{ fromJSON(inputs['dagly-instance'])['jobs-1-steps-10-with-path-8c8c5659fc95456f'] }}
+  check-check:
+    name: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-name-38d03f2860629824'] }}
+    runs-on:
+    - ${{ fromJSON(inputs['dagly-instance'])['jobs-2-runs-on-0-6f29d22026ce6e6d'] }}
+    - ${{ fromJSON(inputs['dagly-instance'])['jobs-2-runs-on-1-3e0a67566f07fe5d'] }}
+    needs:
+    - build-build
+    - gocd_materials
+    env:
+      GO_JOB_NAME: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-env-go_job_name-91dd333ddbaceb9f'] }}
+      GO_MATERIAL_BRANCH_QUALITY: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-env-go_material_branch_quality-7f070d25df4abc22'] }}
+      GO_MATERIAL_BRANCH_SOURCE: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-env-go_material_branch_source-81504af2005d5207'] }}
+      GO_MATERIAL_URL_QUALITY: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-env-go_material_url_quality-0f4921e545920609'] }}
+      GO_MATERIAL_URL_SOURCE: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-env-go_material_url_source-b2a3c5e03c7c0906'] }}
+      GO_PIPELINE_COUNTER: ${{ github.run_number }}
+      GO_PIPELINE_LABEL: 0.3.${{ github.run_number }}
+      GO_PIPELINE_NAME: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-env-go_pipeline_name-46d9024ed0ef90f4'] }}
+      GO_REVISION: ${{ github.sha }}
+      GO_REVISION_QUALITY: ${{ needs.gocd_materials.outputs.quality }}
+      GO_REVISION_SOURCE: ${{ github.sha }}
+      GO_SERVER_URL: ${{ github.server_url }}
+      GO_STAGE_COUNTER: ${{ github.run_attempt }}
+      GO_STAGE_NAME: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-env-go_stage_name-6babe02cf0f156c0'] }}
+      GO_TO_REVISION_QUALITY: ${{ needs.gocd_materials.outputs.quality }}
+      GO_TO_REVISION_SOURCE: ${{ github.sha }}
+      GO_TRIGGER_USER: ${{ github.event_name == 'schedule' && 'timer' || (github.event_name == 'push' || github.event_name == 'workflow_run' || github.event_name == 'repository_dispatch') && 'changes' || github.actor }}
+      SONAR_HOST_URL: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-env-sonar_host_url-cafecd8f2fcee5a2'] }}
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+    - name: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-steps-0-name-ccb22e0298d15790'] }}
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-steps-0-with-fetch-depth-c30bb95c104b236e'] }}
+        path: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-steps-0-with-path-445b4290d495d7cf'] }}
+        ref: ${{ github.sha }}
+        repository: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-steps-0-with-repository-74f90b9940a83144'] }}
+    - name: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-steps-1-name-d495bb23ba82b991'] }}
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-steps-1-with-fetch-depth-6114127ffb57d458'] }}
+        path: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-steps-1-with-path-5e814d1d185223fa'] }}
+        ref: ${{ needs.gocd_materials.outputs.quality }}
+        repository: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-steps-1-with-repository-e44c42937100cd20'] }}
+    - name: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-steps-2-name-2df95d2f769bf0ae'] }}
+      run: /bin/bash -c "$DAGLY_TEMPLATE_ARG_2"
+      working-directory: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-steps-2-working-directory-30300ccd2dfdb1ab'] }}
+      env:
+        DAGLY_TEMPLATE_ARG_2: ${{ fromJSON(inputs['dagly-instance'])['jobs-2-steps-2-env-dagly_template_arg_2-b3592ab2b4bc1983'] }}
